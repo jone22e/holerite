@@ -5,10 +5,20 @@ from typing import List, Dict, Any, Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pdfminer.high_level import extract_text
 from pypdf import PdfReader, PdfWriter
 
-app = FastAPI(title="PDF to JSON API", version="1.2")
+app = FastAPI(title="PDF to JSON API", version="1.3")
+
+# CORS (ajuste os domínios em produção)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],           # ex.: ["http://localhost:5173", "http://127.0.0.1:5173"]
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Regex compatíveis com holerite (ajuste conforme seu layout)
 cpf_re = re.compile(r"CPF:\s*([\d.\-]+)", re.I)
@@ -42,6 +52,12 @@ def page_to_pdf_bytes(pdf_bytes: bytes, page_index: int) -> bytes:
     writer.close()
     return out.getvalue()
 
+def _is_pdf_content_type(ct: Optional[str]) -> bool:
+    if not ct:
+        return True  # alguns browsers mandam vazio; vamos aceitar
+    ct = ct.lower()
+    return ct in ("application/pdf", "application/octet-stream")
+
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -61,7 +77,7 @@ async def extract(file: UploadFile = File(...)):
       ...
     ]
     """
-    if file.content_type != "application/pdf":
+    if not _is_pdf_content_type(file.content_type):
         raise HTTPException(status_code=400, detail="Envie um PDF.")
 
     data = await file.read()
@@ -108,7 +124,7 @@ async def extract_single_page(
     """
     Retorna o binário (application/pdf) contendo apenas a página solicitada.
     """
-    if file.content_type != "application/pdf":
+    if not _is_pdf_content_type(file.content_type):
         raise HTTPException(status_code=400, detail="Envie um PDF.")
 
     data = await file.read()
