@@ -1,0 +1,13 @@
+services:
+  holerite:
+    container_name: holerite
+    build: .
+    restart: unless-stopped
+    expose:
+      - "3002"
+    networks:
+      - flexi2
+
+networks:
+  flexi2:
+    external: true
