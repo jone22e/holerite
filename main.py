@@ -1,6 +1,7 @@
 import io
 import re
 import base64
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query
@@ -10,6 +11,7 @@ from pdfminer.high_level import extract_text
 from pypdf import PdfReader, PdfWriter
 
 app = FastAPI(title="PDF to JSON API", version="1.3")
+SERVICE_START_TIME = datetime.now(timezone.utc)
 
 # CORS (ajuste os domínios em produção)
 app.add_middleware(
@@ -61,6 +63,21 @@ def _is_pdf_content_type(ct: Optional[str]) -> bool:
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/status")
+def status():
+    """
+    Retorna informações básicas de status do serviço.
+    """
+    uptime_seconds = int((datetime.now(timezone.utc) - SERVICE_START_TIME).total_seconds())
+    return {
+        "status": "ok",
+        "service": app.title,
+        "version": app.version,
+        "uptime_seconds": uptime_seconds,
+    }
+
 
 @app.post("/extract")
 async def extract(file: UploadFile = File(...)):
